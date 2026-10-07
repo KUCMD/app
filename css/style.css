@@ -271,12 +271,13 @@ h2.section::after { content: ""; flex: 1; height: 1px; background: var(--line); 
 .drawer-backdrop[hidden] { display: none; }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 .drawer {
-  position: fixed; top: 0; bottom: 0; inset-inline-end: 0; width: min(84vw, 340px); z-index: 31;
+  position: fixed; top: 0; bottom: 0; width: min(84vw, 340px); z-index: 31;
   background: var(--navy); color: #fff; padding: calc(24px + env(safe-area-inset-top, 0px)) 22px 24px;
-  transform: translateX(100%); transition: transform .25s cubic-bezier(.2,.8,.2,1); overflow-y: auto;
+  transition: transform .25s cubic-bezier(.2,.8,.2,1), visibility .25s; overflow-y: auto; visibility: hidden;
 }
-[dir="ltr"] .drawer { transform: translateX(-100%); }
-.drawer.open { transform: none; }
+[dir="rtl"] .drawer { right: 0; transform: translateX(100%); }
+[dir="ltr"] .drawer { left: 0; transform: translateX(-100%); }
+.drawer.open { transform: none; visibility: visible; }
 .drawer .who { display: flex; align-items: center; gap: 12px; padding-bottom: 18px; border-bottom: 2px solid var(--sky); margin-bottom: 18px; }
 .drawer .avatar { width: 52px; height: 52px; border-radius: 14px; background: rgba(255,255,255,.12); display: grid; place-items: center; font-weight: 700; font-size: 22px; color: var(--sky-2); border: 1.5px solid var(--sky); overflow: hidden; }
 .drawer .avatar img { width: 36px; }
