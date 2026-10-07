@@ -13,7 +13,7 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstati
 import { firebaseConfig } from "./config.js";
 import { t, getLang, L, setLang } from "./i18n.js";
 import { I } from "./icons.js";
-import { HOTLINE } from "./config.js";
+import { HOTLINE, ATTACHMENTS_ENABLED } from "./config.js";
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
@@ -153,6 +153,7 @@ export const firebaseError = (e) => {
 export function attachmentPicker(mode = "all") {
   const id = "att" + Math.random().toString(36).slice(2, 8);
   const files = [];
+  if (!ATTACHMENTS_ENABLED) return { html: "", bind: () => {}, files };
   const html = `
     <div class="field">
       <label>${esc(t("attachments"))} <span class="muted">(${esc(t("optional"))})</span></label>
@@ -182,9 +183,24 @@ export function attachmentPicker(mode = "all") {
   };
   return { html, bind, files };
 }
+// Compress camera photos on-device before upload (max 1600px, JPEG 80%): ~6 MB → ~400 KB.
+async function compressImage(file, max = 1600, quality = 0.8) {
+  if (!file.type.startsWith("image/") || file.type === "image/gif" || file.size < 400 * 1024) return file;
+  try {
+    const bmp = await createImageBitmap(file);
+    const scale = Math.min(1, max / Math.max(bmp.width, bmp.height));
+    const c = document.createElement("canvas");
+    c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale);
+    c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+    const blob = await new Promise(r => c.toBlob(r, "image/jpeg", quality));
+    if (!blob || blob.size >= file.size) return file;
+    return new File([blob], file.name.replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg" });
+  } catch { return file; }
+}
 export async function uploadFiles(files, folder) {
   const out = [];
-  for (const f of files) {
+  for (const raw of files) {
+    const f = await compressImage(raw);
     if (f.size > 15 * 1024 * 1024) throw new Error("File too large (max 15 MB): " + f.name);
     const path = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 6)}-${f.name.replace(/[^\w.\-\u0600-\u06FF]+/g, "_")}`;
     const r = ref(storage, path);

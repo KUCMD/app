@@ -13,3 +13,6 @@ export const HOTLINE = "24986888";        // الإبلاغ الفوري عن ش
 export const WHATSAPP = "96524986888";    // WhatsApp number in international format (edit if different)
 export const INSTAGRAM = "cm-department";
 export const UNIVERSITY_EMAIL_DOMAIN = "ku.edu.kw"; // used to validate university e-mails on registration
+
+// Photo / document attachments need Firebase Storage (Blaze plan). Set to false to hide the attachment buttons until Storage is enabled.
+export const ATTACHMENTS_ENABLED = true;
