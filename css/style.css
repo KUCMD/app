@@ -26,7 +26,6 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; height: 100%; background: var(--bg); color-scheme: light only; }
-@media (prefers-color-scheme: dark) { html, body { background: var(--bg); } }
 body { font-family: var(--font); color: var(--ink); font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
 button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
@@ -322,3 +321,40 @@ h2.section::after { content: ""; flex: 1; height: 1px; background: var(--line); 
 .bottom-note { margin-top: 28px; text-align: center; font-size: 12px; color: var(--ink-2); }
 :focus-visible { outline: 3px solid var(--sky); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+/* Samsung Internet / Chrome "dark mode for websites": declare an explicit dark theme that is
+   identical to the light theme, so browsers use it instead of force-inverting the page. */
+@media (prefers-color-scheme: dark) {
+:root {
+  color-scheme: light only;
+  --navy: #0b2a5b;
+  --navy-2: #123a78;
+  --navy-deep: #071c3f;
+  --sky: #1aa0dc;
+  --sky-2: #2ab8f0;
+  --sky-soft: #e4f3fb;
+  --sun: #f6cf2e;
+  --sun-deep: #d9b10a;
+  --sun-soft: #fff7d1;
+  --red: #d8323a;
+  --red-soft: #fdeaea;
+  --green: #1d9a6c;
+  --green-soft: #e3f5ed;
+  --ink: #16213a;
+  --ink-2: #5a6680;
+  --line: #e1e6ef;
+  --paper: #ffffff;
+  --bg: #eef2f7;
+  --r: 16px;
+  --shadow: 0 2px 6px rgba(11, 42, 91, .06), 0 10px 24px rgba(11, 42, 91, .08);
+  --font: "IBM Plex Sans Arabic", "Segoe UI", Tahoma, Arial, sans-serif;
+  --tab-h: 68px;
+}
+  html, body { background: var(--bg) !important; color: var(--ink) !important; }
+  .app { background: var(--bg) !important; }
+  .tile, .rows, .item, .form, .stat, .empty, .lead, .result, .mrow, .contact-line, .tabbar, .chip, .btn.ghost, .seg button.on { background-color: #fff !important; color: var(--ink) !important; }
+  .btn { color: #fff; }
+  .btn.ghost, .btn.sun, .btn.soft { color: var(--navy) !important; }
+  .topbar, .drawer, .emg, .splash { background-color: var(--navy) !important; color: #fff !important; }
+  .field input, .field select, .field textarea { background: #f8fafc !important; color: var(--ink) !important; }
+}
