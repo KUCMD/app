@@ -1,6 +1,20 @@
 // Translations. t(key) picks the active language.
 export const STR = {
   // general
+  home:            { ar: "الرئيسية", en: "Home" },
+  services:        { ar: "الخدمات", en: "Services" },
+  contact_short:   { ar: "اتصل بنا", en: "Contact" },
+  about_dept:      { ar: "عن الإدارة", en: "About us" },
+  field:           { ar: "الميدان", en: "Field" },
+  quick_actions:   { ar: "إجراءات سريعة", en: "Quick actions" },
+  unread:          { ar: "غير مقروء", en: "Unread" },
+  pending_short:   { ar: "بانتظار الاعتماد", en: "Awaiting approval" },
+  open_emergencies:{ ar: "بلاغات مفتوحة", en: "Open emergencies" },
+  all:             { ar: "الكل", en: "All" },
+  maintenance_section: { ar: "قسم الصيانة", en: "Maintenance Section" },
+  security_dept:   { ar: "إدارة الأمن والسلامة", en: "Security & Safety Department" },
+  landline:        { ar: "أرضي", en: "Landline" },
+  menu:            { ar: "القائمة", en: "Menu" },
   app_name:        { ar: "إدارة الإنشاءات والصيانة", en: "Department of Construction & Maintenance" },
   university:      { ar: "جامعة الكويت", en: "Kuwait University" },
   gso:             { ar: "الأمانة العامة", en: "General Secretary Office" },

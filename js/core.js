@@ -11,7 +11,9 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-storage.js";
 import { firebaseConfig } from "./config.js";
-import { t, getLang, L } from "./i18n.js";
+import { t, getLang, L, setLang } from "./i18n.js";
+import { I } from "./icons.js";
+import { HOTLINE } from "./config.js";
 
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
@@ -48,14 +50,83 @@ export function toast(msg, isErr = false) {
 }
 export const busy = (on) => { $("#loading").hidden = !on; };
 
-export function setTop(title, { home = true, settings = false } = {}) {
-  const bar = $("#topbar");
+// ---------- page chrome: top bar / hero / tab bar / drawer ----------
+// setTop(title, { hero: html|null, tabs: bool, back: bool })
+export function setTop(title, { hero = null, tabs = true, back = true } = {}) {
+  const bar = $("#topbar"), h = $("#hero"), v = view();
   bar.hidden = false;
-  $("#top-title").textContent = title || "";
-  $("#btn-home").style.visibility = home ? "visible" : "hidden";
-  $("#btn-settings").hidden = !settings;
+  bar.classList.toggle("on-hero", !!hero);
+  $("#top-title").textContent = hero ? "" : (title || "");
+  $("#btn-back").hidden = !back;
+  if (hero) { h.innerHTML = hero; h.hidden = false; } else { h.hidden = true; h.innerHTML = ""; }
+  v.classList.toggle("no-tabs", !tabs);
+  drawTabs(tabs);
+  // re-trigger page animation
+  v.style.animation = "none"; void v.offsetWidth; v.style.animation = "";
 }
-export const hideTop = () => { $("#topbar").hidden = true; };
+export const hideTop = () => { $("#topbar").hidden = true; $("#hero").hidden = true; drawTabs(false); view().classList.add("no-tabs"); };
+
+export function todayLabel() {
+  return new Date().toLocaleDateString(getLang() === "ar" ? "ar-KW" : "en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+}
+export function brandHero(sub = "") {
+  return `<div class="brand"><div class="shield"><img src="icons/ku-shield.png" alt="Kuwait University"></div>
+    <p class="uni">${esc(t("university"))} · ${esc(t("gso"))}</p><p class="dept">${esc(t("app_name"))}</p>${sub}
+    <div class="sun-bar"></div></div>`;
+}
+
+const tabState = { badge: 0 };
+export function setTabBadge(n) { tabState.badge = n; const b = $("#tab-badge"); if (b) { b.textContent = n; b.hidden = !n; } }
+function drawTabs(show) {
+  const bar = $("#tabbar");
+  bar.hidden = !show;
+  if (!show) return;
+  const emp = state.profile?.status === "approved";
+  const tabs = emp ? [
+    { h: "/dashboard", i: I.home, l: t("dashboard"), m: ["/dashboard"] },
+    { h: "/inbox", i: I.inbox, l: t("inbox"), m: ["/inbox", "/msg"], badge: true },
+    { h: "/emergency", i: I.alert, l: t("emergency"), m: ["/emergency"], cls: "red" },
+    { h: "/", i: I.grid, l: t("services"), m: ["/", "/cat", "/rate"] },
+    { h: "/settings", i: I.settings, l: t("settings"), m: ["/settings"] }
+  ] : [
+    { h: "/", i: I.home, l: t("home"), m: ["/"] },
+    { h: "/cat/user", i: I.grid, l: t("services"), m: ["/cat", "/services", "/inquiry", "/faq", "/contracts"] },
+    { h: "/complain", i: I.alert, l: t("complain"), m: ["/complain", "/suggest", "/rate"] },
+    { h: "/contact", i: I.phone, l: t("contact_short"), m: ["/contact"] },
+    { h: "/employee", i: I.user, l: t("cat_employee"), m: ["/employee"] }
+  ];
+  const path = current().path;
+  bar.innerHTML = tabs.map(x => {
+    const on = x.m.some(m => m === "/" ? path === "/" : path.startsWith(m));
+    return `<a class="tab ${on ? "on" : ""} ${x.cls || ""}" href="#${x.h}">${x.i}<span>${esc(x.l)}</span>${x.badge ? `<span class="badge" id="tab-badge" ${tabState.badge ? "" : "hidden"}>${tabState.badge}</span>` : ""}</a>`;
+  }).join("");
+}
+
+export function openDrawer() {
+  const d = $("#drawer"), bd = $("#drawer-backdrop");
+  const p = state.profile, emp = p?.status === "approved";
+  const item = (href, icon, label) => `<a class="d-item" href="#${href}">${icon}<span class="grow">${esc(label)}</span></a>`;
+  const group = (icon, label, links) => `<button class="d-item" data-group>${icon}<span class="grow">${esc(label)}</span><span class="arrow">${I.down}</span></button><div class="d-sub">${links.map(([h, l]) => `<a href="#${h}">${esc(l)}</a>`).join("")}</div>`;
+  d.querySelector("#drawer-body").innerHTML = `
+    <div class="who"><div class="avatar">${p ? esc((p.name || "?")[0]) : `<img src="icons/ku-shield.png" alt="">`}</div>
+      <div><div class="name">${esc(p ? p.name : t("app_name"))}</div><div class="job">${esc(p ? L(jobLabel(p.job)) : t("university"))}</div></div></div>
+    ${emp ? item("/dashboard", I.home, t("dashboard")) : item("/", I.home, t("home"))}
+    ${emp ? group(I.send, t("correspondence"), [["/inbox", t("inbox")], ["/outbox", t("outbox")], ["/compose/letter", t("prepare_letter")], ["/compose/task", t("assign_task")], ["/meetings", t("meetings")], ["/tasks/ongoing", t("tasks_ongoing")]]) : ""}
+    ${emp ? group(I.wrench, t("field"), [["/emergency", t("emergency")], ["/emergency/log", t("emergency_log")], ["/siteworks", t("site_works")]]) : ""}
+    ${group(I.info, t("about_dept"), [["/about", t("about")], ["/vision", t("vision")], ["/mission", t("mission")], ["/goals", t("goals")], ["/structure", t("structure")], ["/contact", t("contact")]])}
+    ${group(I.grid, t("services"), [["/cat/user", t("cat_user")], ["/cat/staff", t("cat_staff")], ["/cat/company", t("cat_company")], ["/rate", t("rating_forms")], ["/suggest", t("suggest")], ["/complain", t("complain")]])}
+    ${state.user ? item("/settings", I.settings, t("settings")) : item("/employee", I.user, t("cat_employee"))}
+    ${state.user ? `<button class="d-item" id="d-out">${I.logout}<span class="grow">${esc(t("logout"))}</span></button>` : ""}
+    <div class="lang"><button data-l="ar" class="${getLang() === "ar" ? "on" : ""}">العربية</button><button data-l="en" class="${getLang() === "en" ? "on" : ""}">English</button></div>`;
+  d.querySelectorAll("[data-group]").forEach(b => b.onclick = () => { b.classList.toggle("open"); b.nextElementSibling.classList.toggle("open"); });
+  d.querySelectorAll("a").forEach(a => a.addEventListener("click", closeDrawer));
+  d.querySelectorAll("[data-l]").forEach(b => b.onclick = () => { setLang(b.dataset.l); closeDrawer(); render(); });
+  const out = d.querySelector("#d-out"); if (out) out.onclick = async () => { closeDrawer(); await signOut(auth); sessionStorage.removeItem("kucmd_fav_done"); go("/"); };
+  bd.hidden = false; d.classList.add("open"); d.setAttribute("aria-hidden", "false");
+}
+export function closeDrawer() { $("#drawer").classList.remove("open"); $("#drawer").setAttribute("aria-hidden", "true"); $("#drawer-backdrop").hidden = true; }
+let jobLabel = () => ({ ar: "", en: "" });
+export const setJobLabel = (fn) => { jobLabel = fn; };
 
 export function fmtDate(ts) {
   if (!ts) return "";
@@ -86,9 +157,9 @@ export function attachmentPicker(mode = "all") {
     <div class="field">
       <label>${esc(t("attachments"))} <span class="muted">(${esc(t("optional"))})</span></label>
       <div class="attach-row">
-        <button type="button" class="pill soft" data-att="cam">📷 ${esc(t("camera"))}</button>
-        <button type="button" class="pill soft" data-att="img">🖼️ ${esc(t("upload_photo"))}</button>
-        ${mode === "all" ? `<button type="button" class="pill soft" data-att="doc">📄 ${esc(t("upload_doc"))}</button>` : ""}
+        <button type="button" class="btn soft" data-att="cam">${I.camera} ${esc(t("camera"))}</button>
+        <button type="button" class="btn soft" data-att="img">${I.image} ${esc(t("upload_photo"))}</button>
+        ${mode === "all" ? `<button type="button" class="btn soft" data-att="doc">${I.doc} ${esc(t("upload_doc"))}</button>` : ""}
       </div>
       <input type="file" id="${id}-cam" accept="image/*" capture="environment" hidden>
       <input type="file" id="${id}-img" accept="image/*" multiple hidden>
@@ -122,6 +193,7 @@ export async function uploadFiles(files, folder) {
   }
   return out;
 }
+export const emptyHtml = (icon = "📭") => `<div class="empty"><div class="big">${icon}</div>${esc(t("nothing_here"))}</div>`;
 export const attachmentsHtml = (list) => (list && list.length)
   ? `<div class="attach-list"><ul>${list.map(a => `<li><a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.name)}</a></li>`).join("")}</ul></div>` : "";
 
@@ -152,6 +224,7 @@ export async function render() {
   }
   if (!handler) handler = routes["/"];
   window.scrollTo(0, 0);
+  closeDrawer();
   try { await handler({ ...params, ...args }); }
   catch (e) { console.error(e); view().innerHTML = `<div class="banner red">${esc(firebaseError(e))}</div>`; }
 }

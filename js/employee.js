@@ -2,8 +2,10 @@
 // (inbox / outbox / compose), emergencies, site works, admin lists and settings.
 import {
   route, go, view, esc, setTop, toast, busy, attachmentPicker, uploadFiles, attachmentsHtml, fb, db, auth,
-  state, firebaseError, uid, fmtDate, requireEmployee, isManager, myUnit, myRole
+  state, firebaseError, uid, fmtDate, requireEmployee, isManager, myUnit, myRole, todayLabel, setTabBadge, emptyHtml
 } from "./core.js";
+import { I } from "./icons.js";
+import { tile, emergencyCard } from "./public.js";
 import { t, L, setLang, getLang } from "./i18n.js";
 import { UNIVERSITY_EMAIL_DOMAIN } from "./config.js";
 import {
@@ -39,9 +41,9 @@ route("/employee", () => {
     <form class="form" id="f">
       <div class="field"><label>${esc(t("uni_email"))}</label><input name="email" type="email" required autocomplete="username"></div>
       <div class="field"><label>${esc(t("password"))}</label><input name="password" type="password" required autocomplete="current-password"></div>
-      <button class="pill fill" type="submit">${esc(t("login"))}</button>
-      <button class="pill" type="button" id="reg">${esc(t("register"))}</button>
-      <button class="pill sm soft" type="button" id="forgot">${esc(t("forgot"))}</button>
+      <button class="btn" type="submit">${esc(t("login"))}</button>
+      <button class="btn ghost" type="button" id="reg">${esc(t("register"))}</button>
+      <button class="btn soft sm" type="button" id="forgot">${esc(t("forgot"))}</button>
     </form>`;
   $("#reg").onclick = () => go("/employee/register");
   $("#forgot").onclick = async () => {
@@ -60,7 +62,7 @@ route("/employee", () => {
 
 route("/employee/terms", () => {
   setTop(t("emp_title"));
-  view().innerHTML = `<h1 class="page-title">${esc(t("terms_link"))}</h1><div class="banner green" style="white-space:pre-wrap;line-height:2">${esc(t("terms_body"))}</div><button class="pill fill" onclick="history.back()">${esc(t("back"))}</button>`;
+  view().innerHTML = `<h1 class="page-title">${esc(t("terms_link"))}</h1><div class="banner sky" style="white-space:pre-wrap;line-height:2">${esc(t("terms_body"))}</div><button class="btn" onclick="history.back()">${esc(t("back"))}</button>`;
 });
 
 route("/employee/register", () => {
@@ -79,7 +81,7 @@ route("/employee/register", () => {
       <div class="field"><label>${esc(t("password"))}</label><input name="password" type="password" required autocomplete="new-password"></div>
       <div class="field"><label>${esc(t("password2"))}</label><input name="password2" type="password" required autocomplete="new-password"></div>`}
       <label class="check"><input type="checkbox" name="terms" required><span>${esc(t("terms_ok"))} <a href="#/employee/terms">${esc(t("terms_link"))}</a></span></label>
-      <button class="pill fill" type="submit">${esc(t("send"))}</button>
+      <button class="btn" type="submit">${esc(t("send"))}</button>
       <p class="hint">${esc(t("code_note"))}</p>
     </form>`;
   const unitSel = $("#unit"), jobSel = $("#job");
@@ -119,19 +121,19 @@ route("/employee/status", async () => {
   setTop(t("emp_title"));
   if (!state.user) return go("/employee");
   const p = state.profile;
-  const out = `<button class="pill sm soft" id="out">${esc(t("logout"))}</button>`;
+  const out = `<button class="btn soft sm" id="out">${esc(t("logout"))}</button>`;
   if (!p) return go("/employee/register");
   if (!state.user.emailVerified) {
-    view().innerHTML = `<div class="result"><div class="mark ok">✉</div><h2>${esc(t("verify_title"))}</h2><p class="muted">${esc(t("verify_text"))}</p>
-      <div class="stack"><button class="pill fill" id="chk">${esc(t("i_verified"))}</button><button class="pill" id="re">${esc(t("resend"))}</button>${out}</div></div>`;
+    view().innerHTML = `<div class="result"><div class="mark wait">✉</div><h2>${esc(t("verify_title"))}</h2><p class="muted">${esc(t("verify_text"))}</p>
+      <div class="stack"><button class="btn" id="chk">${esc(t("i_verified"))}</button><button class="btn ghost" id="re">${esc(t("resend"))}</button>${out}</div></div>`;
     $("#chk").onclick = async () => { await state.user.reload(); if (state.user.emailVerified) go("/employee/status"); else toast(t("not_verified_yet"), true); };
     $("#re").onclick = async () => { try { await fb.sendEmailVerification(state.user); toast(t("sent_ok")); } catch (e) { toast(firebaseError(e), true); } };
   } else if (p.status === "pending") {
-    view().innerHTML = `<div class="result"><div class="mark ok">⏳</div><h2>${esc(t("pending_title"))}</h2>
-      <div class="banner green" style="text-align:start"><ul><li>${esc(t("pending_1"))}</li><li>${esc(t("pending_2"))}</li><li>${esc(t("pending_3"))}</li></ul></div>${out}</div>`;
+    view().innerHTML = `<div class="result"><div class="mark wait">⏳</div><h2>${esc(t("pending_title"))}</h2>
+      <div class="banner sky" style="text-align:start"><ul><li>${esc(t("pending_1"))}</li><li>${esc(t("pending_2"))}</li><li>${esc(t("pending_3"))}</li></ul></div>${out}</div>`;
   } else if (p.status === "rejected") {
     view().innerHTML = `<div class="result"><div class="mark no">✕</div><h2>${esc(t("rejected_title"))}</h2><p class="muted">${esc(t("rejected_text"))}</p>
-      <div class="stack"><button class="pill fill" id="re">${esc(t("reapply"))}</button>${out}</div></div>`;
+      <div class="stack"><button class="btn" id="re">${esc(t("reapply"))}</button>${out}</div></div>`;
     $("#re").onclick = () => go("/employee/register");
   } else if (p.status === "suspended") {
     view().innerHTML = `<div class="result"><div class="mark no">⏸</div><p class="muted">${esc(t("suspended_text"))}</p>${out}</div>`;
@@ -144,83 +146,78 @@ route("/employee/status", async () => {
 // ---------- dashboard ----------
 function dashHeader() {
   const p = state.profile;
-  return `<div class="me"><div class="avatar">${esc((p.name || "?")[0])}</div><div><div class="name">${esc(p.name)}</div><div class="role">${esc(L(job(p.job)))} · ${esc(L(unit(p.unit)))}${isManager() && p.role !== "manager" ? " · " + esc(t("delegate")) : ""}</div></div></div>`;
+  return `<div class="who"><div class="avatar">${esc((p.name || "?")[0])}</div><div><div class="name">${esc(p.name)}</div><span class="job">${esc(L(job(p.job)))}</span></div></div>
+    <div class="date"><span>${esc(L(unit(p.unit)))}${isManager() && p.role !== "manager" ? " · " + esc(t("delegate")) : ""}</span><span>${esc(todayLabel())}</span></div>`;
 }
 route("/dashboard", async () => {
   if (!requireEmployee()) return;
-  setTop(t("dashboard"), { settings: true });
+  setTop("", { hero: dashHeader(), back: false });
   const role = myRole();
-  const counts = await unreadCounts();
   const other = UNITS.filter(u => u.id !== myUnit());
+  const approver = ["manager", "supervisor", "head"].includes(role);
+  const seesFeedback = approver || ["secretariat", "support", "technical"].includes(myUnit());
   view().innerHTML = `
-    ${dashHeader()}
-    <div class="grid2">
-      <a class="pill fill" href="#/inbox">${esc(t("inbox"))} ${counts.total ? `<span class="badge">${counts.total}</span>` : ""}</a>
-      <a class="pill" href="#/outbox">${esc(t("outbox"))}</a>
+    <div class="stats" id="stats">
+      <div class="stat"><b id="st-inbox">–</b><span>${esc(t("unread"))}</span></div>
+      <div class="stat"><b id="st-tasks">–</b><span>${esc(t("tasks_ongoing"))}</span></div>
+      <div class="stat alert"><b id="st-emg">–</b><span>${esc(t("open_emergencies"))}</span></div>
     </div>
+
+    <h2 class="section">${esc(t("quick_actions"))}</h2>
+    <div class="tiles">
+      ${tile("/inbox", I.inbox, t("inbox"), "sky")}
+      ${tile("/outbox", I.send, t("outbox"), "navy")}
+      ${tile("/emergency", I.alert, t("emergency"), "red")}
+      ${tile("/siteworks", I.wrench, t("site_works"), "green")}
+    </div>
+
     <h2 class="section">${esc(t("compose"))}</h2>
-    <div class="grid2">
-      <a class="pill sky" href="#/compose/letter">${esc(t("prepare_letter"))}</a>
-      <a class="pill sky" href="#/compose/task">${esc(t("assign_task"))}</a>
-      <a class="pill sky" href="#/compose/memo">${esc(t("prepare_memo"))}</a>
-      <a class="pill sky" href="#/compose/report">${esc(t("prepare_report"))}</a>
-      <a class="pill sky" href="#/compose/minutes">${esc(t("prepare_minutes"))}</a>
-      <a class="pill sky" href="#/compose/meeting">${esc(t("set_meeting"))}</a>
+    <div class="tiles cols3">
+      ${tile("/compose/letter", I.file, t("prepare_letter"))}
+      ${tile("/compose/memo", I.note, t("prepare_memo"))}
+      ${tile("/compose/report", I.chart, t("prepare_report"))}
+      ${tile("/compose/task", I.task, t("assign_task"), "sun")}
+      ${tile("/compose/minutes", I.users, t("prepare_minutes"))}
+      ${tile("/compose/meeting", I.calendar, t("set_meeting"), "navy")}
     </div>
-    <div class="grid3" style="margin-top:10px">
-      <a class="pill sm" href="#/tasks/ongoing">${esc(t("tasks_ongoing"))}</a>
-      <a class="pill sm" href="#/tasks/postponed">${esc(t("tasks_postponed"))}</a>
-      <a class="pill sm" href="#/tasks/done">${esc(t("tasks_done"))}</a>
+
+    <h2 class="section">${esc(t("tasks_ongoing"))} · ${esc(t("meetings"))}</h2>
+    <div class="rows">
+      ${[["/tasks/ongoing", I.clock, t("tasks_ongoing")], ["/tasks/postponed", I.clock, t("tasks_postponed")], ["/tasks/done", I.check, t("tasks_done")], ["/meetings", I.calendar, t("meetings")], ["/tasks/archive", I.archive, t("archive")], ["/emergency/log", I.alert, t("emergency_log")]]
+        .map(([h, i, l]) => `<a class="row-item" href="#${h}"><span class="ic">${i}</span><span class="grow">${esc(l)}</span><span class="chev">${I.chevron}</span></a>`).join("")}
     </div>
-    <div class="grid2" style="margin-top:10px">
-      <a class="pill sm" href="#/meetings">${esc(t("meetings"))}</a>
-      <a class="pill sm" href="#/tasks/archive">${esc(t("archive"))}</a>
-    </div>
+
+    ${approver ? `<h2 class="section">${esc(t("join_requests"))}</h2>
+    <div class="tiles">${tile("/requests", I.users, t("join_requests"), "sun", t("pending_short"))}${tile("/settings/users", I.badge, t("toggle_users"), "navy")}</div>` : ""}
+
+    ${seesFeedback ? `<h2 class="section">${esc(t("cat_user"))}</h2>
+    <div class="tiles cols3">
+      ${tile("/feedback/complaint", I.alert, t("user_complaints"), "red")}
+      ${tile("/feedback/suggestion", I.bulb, t("user_suggestions"), "sun")}
+      ${tile("/feedback/request", I.wrench, t("user_requests"))}
+      ${tile("/feedback/rating", I.star, t("user_ratings"), "sun")}
+      ${tile("/feedback/inquiry", I.mail, t("inquiries_in"), "navy")}
+    </div>` : ""}
 
     <h2 class="section">${esc(t("correspondence"))}</h2>
-    <div class="matrix">
+    <div class="list" id="matrix">
       ${other.map(u => `<div class="mrow"><span class="name">${esc(L(u))}</span>
-        <a class="pill sm" href="#/inbox?unit=${u.id}">${esc(t("inbox"))} ${counts.byUnit[u.id] ? `<span class="badge">${counts.byUnit[u.id]}</span>` : ""}</a>
-        <a class="pill sm" href="#/outbox?unit=${u.id}">${esc(t("outbox"))}</a></div>`).join("")}
-    </div>
+        <a class="btn soft sm" href="#/inbox?unit=${u.id}">${esc(t("inbox"))} <span class="badge" data-badge="${u.id}" hidden></span></a>
+        <a class="btn ghost sm" href="#/outbox?unit=${u.id}">${esc(t("outbox"))}</a></div>`).join("")}
+    </div>`;
 
-    <h2 class="section">${esc(t("emergency"))} · ${esc(t("site_works"))}</h2>
-    <div class="grid2">
-      <a class="pill red" href="#/emergency">${esc(t("emergency"))}</a>
-      <a class="pill" href="#/siteworks">${esc(t("site_works"))}</a>
-    </div>
-    <div class="grid2" style="margin-top:10px">
-      <a class="pill sm" href="#/emergency/log">${esc(t("emergency_log"))}</a>
-      <a class="pill sm" href="#/feedback/inquiry">${esc(t("inquiries_in"))}</a>
-    </div>
-
-    ${["manager", "supervisor", "head"].includes(role) ? `
-    <h2 class="section">${esc(t("join_requests"))}</h2>
-    <a class="pill sun" href="#/requests">${esc(t("join_requests"))}</a>` : ""}
-
-    ${["manager", "supervisor", "head"].includes(role) || ["secretariat", "support", "technical"].includes(myUnit()) ? `
-    <h2 class="section">${esc(t("cat_user"))}</h2>
-    <div class="grid2">
-      <a class="pill sm" href="#/feedback/complaint">${esc(t("user_complaints"))}</a>
-      <a class="pill sm" href="#/feedback/suggestion">${esc(t("user_suggestions"))}</a>
-      <a class="pill sm" href="#/feedback/request">${esc(t("user_requests"))}</a>
-      <a class="pill sm" href="#/feedback/rating">${esc(t("user_ratings"))}</a>
-    </div>` : ""}`;
-});
-
-async function unreadCounts() {
+  // live stats
   const me = uid();
-  const q = fb.query(fb.collection(db, "messages"), fb.where("toUnit", "==", myUnit()));
-  const snap = await fb.getDocs(q);
-  const byUnit = {}; let total = 0;
-  snap.forEach(d => {
-    const m = d.data();
-    if (m.toUid && m.toUid !== me) return;
-    if ((m.readBy || []).includes(me)) return;
-    total++; byUnit[m.fromUnit] = (byUnit[m.fromUnit] || 0) + 1;
-  });
-  return { total, byUnit };
-}
+  const un1 = fb.onSnapshot(fb.query(fb.collection(db, "messages"), fb.where("toUnit", "==", myUnit())), (snap) => {
+    const byUnit = {}; let total = 0, ongoing = 0;
+    snap.forEach(d => { const m = d.data(); if (m.toUid && m.toUid !== me) return; if (m.status === "ongoing") ongoing++; if ((m.readBy || []).includes(me)) return; total++; byUnit[m.fromUnit] = (byUnit[m.fromUnit] || 0) + 1; });
+    const si = $("#st-inbox"); if (si) si.textContent = total; const st = $("#st-tasks"); if (st) st.textContent = ongoing;
+    setTabBadge(total);
+    $$("[data-badge]").forEach(b => { const n = byUnit[b.dataset.badge] || 0; b.textContent = n; b.hidden = !n; });
+  }, () => {});
+  const un2 = fb.onSnapshot(fb.collection(db, "emergencies"), (snap) => { let n = 0; snap.forEach(d => { if (d.data().status !== "done") n++; }); const e = $("#st-emg"); if (e) e.textContent = n; }, () => {});
+  state.unsub.push(un1, un2);
+});
 
 // ---------- messages ----------
 function msgItem(d, m) {
@@ -238,11 +235,11 @@ const sortDesc = (docs) => docs.sort((a, b) => (b.data().createdAt?.toMillis?.()
 async function listMessages(title, filterFn, qCons) {
   if (!requireEmployee()) return;
   setTop(title, { settings: true });
-  view().innerHTML = `<h1 class="page-title">${esc(title)}</h1><div class="list" id="list"><p class="muted center">${esc(t("loading"))}</p></div>`;
+  view().innerHTML = `<h1 class="page-title">${esc(title)}</h1><div class="list" id="list"><div class="skeleton"></div><div class="skeleton"></div></div>`;
   const q = fb.query(fb.collection(db, "messages"), ...qCons);
   const un = fb.onSnapshot(q, (snap) => {
     const docs = sortDesc(snap.docs.filter(d => filterFn(d.data())));
-    $("#list").innerHTML = docs.length ? docs.map(d => msgItem(d, d.data())).join("") : `<p class="empty">${esc(t("nothing_here"))}</p>`;
+    $("#list").innerHTML = docs.length ? docs.map(d => msgItem(d, d.data())).join("") : emptyHtml();
     bindItems();
   }, (e) => { $("#list").innerHTML = `<div class="banner red">${esc(firebaseError(e))}</div>`; });
   state.unsub.push(un);
@@ -288,7 +285,7 @@ route("/compose/:type", async ({ type, to, reply }) => {
       <div class="field"><label>${esc(t("subject"))}</label><input name="subject" required value="${esc(reply ? "Re: " + reply : "")}"></div>
       <div class="field"><label>${esc(t("details"))}</label><textarea name="body" required></textarea></div>
       ${att.html}
-      <button class="pill fill" type="submit">${esc(t("send"))}</button>
+      <button class="btn" type="submit">${esc(t("send"))}</button>
     </form>`;
   att.bind(view());
   const toUnitSel = $("#toUnit"), toUidSel = $("#toUid");
@@ -341,16 +338,16 @@ route("/msg/:id", async ({ id }) => {
         <div class="body">${esc(m.body)}</div>
         ${attachmentsHtml(m.attachments)}
       </div>
-      ${(m.replies || []).map(r => `<div class="item" style="margin-top:8px;background:var(--green-soft)"><div class="meta">${esc(r.name)} · ${esc(fmtDate(r.at))}</div><div class="body">${esc(r.text)}</div></div>`).join("")}
+      ${(m.replies || []).map(r => `<div class="item reply" style="margin-top:8px"><div class="meta">${esc(r.name)} · ${esc(fmtDate(r.at))}</div><div class="body">${esc(r.text)}</div></div>`).join("")}
       ${canAct ? `
       <div class="actions">
-        <button class="pill sm" data-st="ongoing">${esc(t("mark_ongoing"))}</button>
-        <button class="pill sm" data-st="postponed">${esc(t("mark_postponed"))}</button>
-        <button class="pill sm fill" data-st="done">${esc(t("mark_done"))}</button>
+        <button class="btn ghost sm" data-st="ongoing">${esc(t("mark_ongoing"))}</button>
+        <button class="btn ghost sm" data-st="postponed">${esc(t("mark_postponed"))}</button>
+        <button class="btn sm" data-st="done">${esc(t("mark_done"))}</button>
       </div>
       <form class="form" id="rf" style="margin-top:12px">
         <div class="field"><label>${esc(t("reply"))}</label><textarea name="text" required></textarea></div>
-        <button class="pill" type="submit">${esc(t("reply"))}</button>
+        <button class="btn ghost" type="submit">${esc(t("reply"))}</button>
       </form>` : ""}`;
     $$("[data-st]").forEach(b => b.onclick = async () => {
       try { await fb.updateDoc(refDoc, { status: b.dataset.st, updatedAt: fb.serverTimestamp() }); toast(t("saved_ok")); draw({ ...m, status: b.dataset.st }); }
@@ -374,7 +371,7 @@ route("/requests", async () => {
   const role = myRole();
   if (!["manager", "supervisor", "head"].includes(role)) return go("/dashboard");
   setTop(t("join_requests"), { settings: true });
-  view().innerHTML = `<h1 class="page-title">${esc(t("join_requests"))}</h1><div class="list" id="list"><p class="muted center">${esc(t("loading"))}</p></div>`;
+  view().innerHTML = `<h1 class="page-title">${esc(t("join_requests"))}</h1><div class="list" id="list"><div class="skeleton"></div><div class="skeleton"></div></div>`;
   const q = fb.query(fb.collection(db, "users"), fb.where("status", "==", "pending"));
   const inScope = (u) => {
     if (role === "manager") return true;
@@ -390,10 +387,10 @@ route("/requests", async () => {
         <div class="meta">${esc(t("emp_id"))}: ${esc(u.empId)} · ${esc(t("uni_email"))}: ${esc(u.email)} · ${esc(t("uni_mobile"))}: ${esc(u.mobile)}</div>
         ${(u.endorsements || []).length ? `<div class="meta">${esc(t("endorsed_by"))}: ${u.endorsements.map(e => esc(e.name)).join(", ")}</div>` : ""}
         <div class="actions">
-          <button class="pill sm fill" data-ok="${d.id}">${esc(role === "manager" || u.stage === "manager" ? t("approve") : t("endorse"))}</button>
-          <button class="pill sm red" data-no="${d.id}">${esc(t("reject"))}</button>
+          <button class="btn sm" data-ok="${d.id}">${esc(role === "manager" || u.stage === "manager" ? t("approve") : t("endorse"))}</button>
+          <button class="btn red sm" data-no="${d.id}">${esc(t("reject"))}</button>
         </div>
-      </div>`; }).join("") : `<p class="empty">${esc(t("nothing_here"))}</p>`;
+      </div>`; }).join("") : emptyHtml();
     $$("[data-ok]").forEach(b => b.onclick = async () => {
       const d = snap.docs.find(x => x.id === b.dataset.ok); const u = d.data();
       const endorsement = { uid: uid(), name: state.profile.name, job: state.profile.job, at: new Date() };
@@ -420,14 +417,15 @@ route("/emergency", () => {
   let danger = null;
   view().innerHTML = `
     <h1 class="page-title" style="color:var(--red)">${esc(t("emergency"))}</h1>
+    <div class="banner sun">${esc(t("security_dept"))}: <a href="tel:24983333" style="font-weight:700;direction:ltr;display:inline-block">24983333</a> · ${esc(t("maintenance_section"))}: <a href="tel:24986888" style="font-weight:700;direction:ltr;display:inline-block">24986888</a></div>
     <form class="form" id="f">
       <div class="field"><label>${esc(t("danger_type"))}</label>
-        <div class="danger-grid">${DANGERS.map(d => `<button type="button" class="pill" data-d="${d.id}">${esc(L(d))}</button>`).join("")}</div></div>
+        <div class="chips">${DANGERS.map(d => `<button type="button" class="chip red" data-d="${d.id}">${esc(L(d))}</button>`).join("")}</div></div>
       <div class="field"><label>${esc(t("location"))}</label><input name="location" required></div>
       <div class="field"><label>${esc(t("message_text"))}</label><textarea name="text"></textarea></div>
       ${att.html}
       <div class="field"><label>${esc(t("report_btn"))} →</label>
-        <div class="stack">${EMERGENCY_TARGETS.map(z => `<button type="button" class="pill red" data-z="${z.id}">${esc(t("report_btn"))} · ${esc(L(z))}</button>`).join("")}</div></div>
+        <div class="stack">${EMERGENCY_TARGETS.map(z => `<button type="button" class="btn red" data-z="${z.id}">${I.alert} ${esc(t("report_btn"))} · ${esc(L(z))}</button>`).join("")}</div></div>
     </form>`;
   att.bind(view());
   $$("[data-d]").forEach(b => b.onclick = () => { danger = b.dataset.d; $$("[data-d]").forEach(x => x.classList.toggle("on", x === b)); });
@@ -457,8 +455,8 @@ route("/emergency/log", () => {
       <div class="item"><div class="row"><span class="title">⚠ ${esc(L(DANGERS.find(x => x.id === e.danger)))} · ${esc(e.location)}</span>${tag(e.status, statusLabel(e.status))}</div>
       <div class="meta">${esc(L(EMERGENCY_TARGETS.find(x => x.id === e.target)))} · ${esc(e.byName)} (${esc(L(unit(e.byUnit)))}) · <a href="tel:${esc(e.byMobile)}">${esc(e.byMobile)}</a> · ${esc(fmtDate(e.createdAt))}</div>
       ${e.text ? `<div class="body">${esc(e.text)}</div>` : ""}${attachmentsHtml(e.attachments)}
-      ${e.status !== "done" ? `<div class="actions"><button class="pill sm" data-st="ongoing" data-id="${d.id}">${esc(t("mark_ongoing"))}</button><button class="pill sm fill" data-st="done" data-id="${d.id}">${esc(t("mark_done"))}</button></div>` : ""}</div>`; }).join("")
-      : `<p class="empty">${esc(t("nothing_here"))}</p>`;
+      ${e.status !== "done" ? `<div class="actions"><button class="btn ghost sm" data-st="ongoing" data-id="${d.id}">${esc(t("mark_ongoing"))}</button><button class="btn sm" data-st="done" data-id="${d.id}">${esc(t("mark_done"))}</button></div>` : ""}</div>`; }).join("")
+      : emptyHtml();
     $$("[data-st]").forEach(b => b.onclick = () => fb.updateDoc(fb.doc(db, "emergencies", b.dataset.id), { status: b.dataset.st }).catch(e => toast(firebaseError(e), true)));
   }, (e) => { $("#list").innerHTML = `<div class="banner red">${esc(firebaseError(e))}</div>`; });
   state.unsub.push(un);
@@ -469,7 +467,7 @@ route("/siteworks", () => {
   if (!requireEmployee()) return;
   setTop(t("site_works"), { settings: true });
   view().innerHTML = `<h1 class="page-title">${esc(t("site_works"))}</h1>
-    <div class="grid2">${TRADES.map(x => `<a class="pill" href="#/siteworks/${x.id}">${esc(L(x))}</a>`).join("")}</div>`;
+    <div class="tiles">${TRADES.map((x, i) => tile("/siteworks/" + x.id, [I.bolt, I.wind, I.settings, I.wave, I.hardhat][i], L(x), ["sun", "sky", "navy", "sky", "green"][i])).join("")}</div>`;
 });
 route("/siteworks/:trade", ({ trade }) => {
   if (!requireEmployee()) return;
@@ -483,7 +481,7 @@ route("/siteworks/:trade", ({ trade }) => {
       <div class="field"><label>${esc(t("details"))}</label><textarea name="text" required></textarea></div>
       <div class="field"><label>${esc(t("status"))}</label><select name="status">${opt(MSG_STATUS.filter(s => s.id !== "new"), "ongoing")}</select></div>
       ${att.html}
-      <button class="pill fill" type="submit">${esc(t("site_work_new"))}</button>
+      <button class="btn" type="submit">${esc(t("site_work_new"))}</button>
     </form>
     <h2 class="section">${esc(t("archive"))}</h2><div class="list" id="list"></div>`;
   att.bind(view());
@@ -499,7 +497,7 @@ route("/siteworks/:trade", ({ trade }) => {
   const un = fb.onSnapshot(fb.query(fb.collection(db, "site_works"), fb.where("trade", "==", trade)), (snap) => {
     const docs = sortDesc([...snap.docs]).slice(0, 50);
     $("#list").innerHTML = docs.length ? docs.map(d => { const w = d.data(); return `<div class="item"><div class="row"><span class="title">${esc(w.location)}</span>${tag(w.status, statusLabel(w.status))}</div>
-      <div class="meta">${esc(w.byName)} · ${esc(L(unit(w.byUnit)))} · ${esc(fmtDate(w.createdAt))}</div><div class="body">${esc(w.text)}</div>${attachmentsHtml(w.attachments)}</div>`; }).join("") : `<p class="empty">${esc(t("nothing_here"))}</p>`;
+      <div class="meta">${esc(w.byName)} · ${esc(L(unit(w.byUnit)))} · ${esc(fmtDate(w.createdAt))}</div><div class="body">${esc(w.text)}</div>${attachmentsHtml(w.attachments)}</div>`; }).join("") : emptyHtml();
   });
   state.unsub.push(un);
 });
@@ -518,8 +516,8 @@ route("/feedback/:kind", ({ kind }) => {
       <div class="meta">${f.unit ? esc(L(unit(f.unit))) + " · " : ""}${f.location ? esc(f.location) + " · " : ""}${esc(fmtDate(f.createdAt))}</div>
       ${f.scores ? `<div class="meta">${Object.entries(f.scores).map(([k, v]) => `${"★".repeat(v)}`).join(" · ")} (${(Object.values(f.scores).reduce((a, b) => a + b, 0) / Object.keys(f.scores).length).toFixed(1)}/5)</div>` : ""}
       ${f.text ? `<div class="body">${esc(f.text)}</div>` : ""}${attachmentsHtml(f.attachments)}
-      ${f.status !== "done" ? `<div class="actions"><button class="pill sm" data-st="ongoing" data-id="${d.id}">${esc(t("mark_ongoing"))}</button><button class="pill sm fill" data-st="done" data-id="${d.id}">${esc(t("mark_done"))}</button></div>` : ""}</div>`; }).join("")
-      : `<p class="empty">${esc(t("nothing_here"))}</p>`;
+      ${f.status !== "done" ? `<div class="actions"><button class="btn ghost sm" data-st="ongoing" data-id="${d.id}">${esc(t("mark_ongoing"))}</button><button class="btn sm" data-st="done" data-id="${d.id}">${esc(t("mark_done"))}</button></div>` : ""}</div>`; }).join("")
+      : emptyHtml();
     $$("[data-st]").forEach(b => b.onclick = () => fb.updateDoc(fb.doc(db, "feedback", b.dataset.id), { status: b.dataset.st, handledBy: uid() }).catch(e => toast(firebaseError(e), true)));
   }, (e) => { $("#list").innerHTML = `<div class="banner red">${esc(firebaseError(e))}</div>`; });
   state.unsub.push(un);
@@ -528,28 +526,29 @@ route("/feedback/:kind", ({ kind }) => {
 // ---------- settings ----------
 route("/settings", () => {
   if (!state.user) return go("/employee");
-  setTop(t("settings"));
+  setTop(t("settings"), { back: false });
   const mgr = isManager();
+  const row = (h, i, l, cls = "") => `<a class="row-item ${cls}" href="#${h}"><span class="ic">${i}</span><span class="grow">${esc(l)}</span><span class="chev">${I.chevron}</span></a>`;
   view().innerHTML = `
-    <h1 class="page-title">${esc(t("settings"))}</h1>
-    ${state.profile ? dashHeader() : ""}
-    <div class="stack">
-      <a class="pill" href="#/settings/lang">${esc(t("change_lang"))}</a>
-      <a class="pill" href="#/settings/password">${esc(t("change_pw"))}</a>
-      <a class="pill" href="#/settings/fav">${esc(t("fav_page"))}</a>
-      ${mgr ? `
-      <a class="pill sky" href="#/settings/app">${esc(t("toggle_app"))}</a>
-      <a class="pill sky" href="#/settings/users">${esc(t("toggle_users"))}</a>
-      <a class="pill sky" href="#/settings/delegate">${esc(t("delegate"))}</a>` : ""}
-      <button class="pill red" id="out">${esc(t("logout"))}</button>
-    </div>`;
+    ${state.profile ? `<div class="item" style="flex-direction:row;align-items:center;gap:12px;margin-bottom:14px"><div class="avatar" style="width:52px;height:52px;border-radius:14px;background:var(--sky);color:#fff;display:grid;place-items:center;font-weight:700;font-size:22px">${esc((state.profile.name || "?")[0])}</div><div><div class="title">${esc(state.profile.name)}</div><div class="meta">${esc(L(job(state.profile.job)))} · ${esc(L(unit(state.profile.unit)))}</div></div></div>` : ""}
+    <div class="rows">
+      ${row("/settings/lang", I.globe, t("change_lang"))}
+      ${row("/settings/password", I.lock, t("change_pw"))}
+      ${row("/settings/fav", I.home, t("fav_page"))}
+    </div>
+    ${mgr ? `<h2 class="section">${esc(t("delegate"))}</h2><div class="rows">
+      ${row("/settings/app", I.power, t("toggle_app"))}
+      ${row("/settings/users", I.users, t("toggle_users"))}
+      ${row("/settings/delegate", I.key, t("delegate"))}
+    </div>` : ""}
+    <div class="rows" style="margin-top:14px"><button class="row-item danger" id="out"><span class="ic">${I.logout}</span><span class="grow">${esc(t("logout"))}</span></button></div>`;
   $("#out").onclick = () => fb.signOut(auth).then(() => { sessionStorage.removeItem("kucmd_fav_done"); go("/"); });
 });
 route("/settings/lang", () => {
   setTop(t("change_lang"));
   view().innerHTML = `<h1 class="page-title">${esc(t("change_lang"))}</h1><div class="stack">
-    <button class="pill ${getLang() === "ar" ? "fill" : ""}" data-l="ar">العربية</button>
-    <button class="pill sky ${getLang() === "en" ? "fill" : ""}" data-l="en">English</button></div>`;
+    <button class="btn ${getLang() === "ar" ? "" : "ghost"}" data-l="ar">العربية</button>
+    <button class="btn ${getLang() === "en" ? "sky" : "ghost"}" data-l="en">English</button></div>`;
   $$("[data-l]").forEach(b => b.onclick = async () => {
     setLang(b.dataset.l);
     if (state.profile) { try { await fb.updateDoc(fb.doc(db, "users", uid()), { lang: b.dataset.l }); } catch { } }
@@ -564,7 +563,7 @@ route("/settings/password", () => {
       <div class="field"><label>${esc(t("current_pw"))}</label><input name="cur" type="password" required autocomplete="current-password"></div>
       <div class="field"><label>${esc(t("new_pw"))}</label><input name="p1" type="password" required autocomplete="new-password"></div>
       <div class="field"><label>${esc(t("password2"))}</label><input name="p2" type="password" required autocomplete="new-password"></div>
-      <button class="pill fill" type="submit">${esc(t("save"))}</button></form>`;
+      <button class="btn" type="submit">${esc(t("save"))}</button></form>`;
   $("#f").onsubmit = async (e) => {
     e.preventDefault();
     const d = Object.fromEntries(new FormData(e.target).entries());
@@ -581,7 +580,7 @@ route("/settings/password", () => {
 route("/settings/fav", () => {
   if (!state.profile) return go("/employee");
   setTop(t("fav_page"));
-  view().innerHTML = `<h1 class="page-title">${esc(t("fav_page"))}</h1><div class="stack">${FAV_PAGES.map(p => `<button class="pill ${state.profile.favPage === p.id ? "fill" : ""}" data-p="${p.id}">${esc(L(p))}</button>`).join("")}</div>`;
+  view().innerHTML = `<h1 class="page-title">${esc(t("fav_page"))}</h1><div class="stack">${FAV_PAGES.map(p => `<button class="btn ${state.profile.favPage === p.id ? "" : "ghost"}" data-p="${p.id}">${esc(L(p))}</button>`).join("")}</div>`;
   $$("[data-p]").forEach(b => b.onclick = async () => {
     try { await fb.updateDoc(fb.doc(db, "users", uid()), { favPage: b.dataset.p }); state.profile.favPage = b.dataset.p; toast(t("saved_ok")); go("/settings"); }
     catch (e) { toast(firebaseError(e), true); }
@@ -594,7 +593,7 @@ route("/settings/app", () => {
     const on = state.settings.active !== false;
     view().innerHTML = `<h1 class="page-title">${esc(t("toggle_app"))}</h1>
       <div class="banner ${on ? "green" : "red"} center"><b>${esc(on ? t("app_is_active") : t("app_is_off"))}</b></div>
-      <div class="stack"><button class="pill fill" id="on" ${on ? "disabled" : ""}>${esc(t("activate"))}</button><button class="pill red" id="off" ${on ? "" : "disabled"}>${esc(t("suspend"))}</button></div>`;
+      <div class="stack"><button class="btn" id="on" ${on ? "disabled" : ""}>${esc(t("activate"))}</button><button class="btn red" id="off" ${on ? "" : "disabled"}>${esc(t("suspend"))}</button></div>`;
     const set = (v) => async () => { if (!confirm("?")) return; try { await fb.setDoc(fb.doc(db, "settings", "app"), { active: v, updatedBy: uid(), updatedAt: fb.serverTimestamp() }, { merge: true }); state.settings.active = v; toast(t("saved_ok")); draw(); } catch (e) { toast(firebaseError(e), true); } };
     $("#on").onclick = set(true); $("#off").onclick = set(false);
   };
@@ -614,8 +613,8 @@ route("/settings/users", () => {
       <h2 class="section">${esc(L(u))}</h2>${groups[u.id].map(x => `
       <div class="item"><div class="row"><span class="title">${esc(x.name)}</span>${tag(x.status, x.status === "approved" ? t("activate") : t("suspend"))}</div>
       <div class="meta">${esc(L(job(x.job)))} · ${esc(x.empId)} · ${esc(x.email)}</div>
-      <div class="actions"><button class="pill sm ${x.status === "approved" ? "red" : "fill"}" data-id="${x.id}" data-to="${x.status === "approved" ? "suspended" : "approved"}">${esc(x.status === "approved" ? t("suspend") : t("activate"))}</button></div></div>`).join("")}`).join("")
-      : `<p class="empty">${esc(t("nothing_here"))}</p>`;
+      <div class="actions"><button class="btn sm ${x.status === "approved" ? "red" : ""}" data-id="${x.id}" data-to="${x.status === "approved" ? "suspended" : "approved"}">${esc(x.status === "approved" ? t("suspend") : t("activate"))}</button></div></div>`).join("")}`).join("")
+      : emptyHtml();
     $$("[data-to]").forEach(b => b.onclick = () => fb.updateDoc(fb.doc(db, "users", b.dataset.id), { status: b.dataset.to, statusBy: uid(), statusAt: fb.serverTimestamp() }).then(() => toast(t("saved_ok"))).catch(e => toast(firebaseError(e), true)));
   }, (e) => { $("#list").innerHTML = `<div class="banner red">${esc(firebaseError(e))}</div>`; });
   state.unsub.push(un);
@@ -627,8 +626,8 @@ route("/settings/delegate", () => {
   const draw = () => {
     const d = state.settings.delegates || {};
     view().innerHTML = `<h1 class="page-title">${esc(t("delegate"))}</h1><p class="muted center">${esc(t("delegated_note"))}</p>
-      <div class="stack">${sups.map(j => `<label class="check pill" style="justify-content:flex-start"><input type="checkbox" data-j="${j.id}" ${d[j.id] ? "checked" : ""}> ${esc(L(j))}</label>`).join("")}
-      <button class="pill fill" id="save">${esc(t("save"))}</button></div>`;
+      <div class="stack">${sups.map(j => `<label class="check btn ghost" style="justify-content:flex-start"><input type="checkbox" data-j="${j.id}" ${d[j.id] ? "checked" : ""}> ${esc(L(j))}</label>`).join("")}
+      <button class="btn" id="save">${esc(t("save"))}</button></div>`;
     $("#save").onclick = async () => {
       const delegates = {}; $$("[data-j]").forEach(c => delegates[c.dataset.j] = c.checked);
       try { await fb.setDoc(fb.doc(db, "settings", "app"), { delegates, updatedBy: uid(), updatedAt: fb.serverTimestamp() }, { merge: true }); state.settings.delegates = delegates; toast(t("saved_ok")); go("/settings"); }

@@ -1,25 +1,37 @@
 // Public (no sign-in) pages: language, home, about pages, rating/suggestion/complaint,
 // and the User / University staff / Companies categories.
-import { route, go, view, esc, setTop, hideTop, toast, busy, attachmentPicker, uploadFiles, fb, db, state, firebaseError, uid } from "./core.js";
+import { route, go, view, esc, setTop, hideTop, toast, busy, attachmentPicker, uploadFiles, fb, db, state, firebaseError, uid, brandHero, todayLabel } from "./core.js";
+import { I } from "./icons.js";
 import { t, L, setLang, getLang } from "./i18n.js";
 import { HOTLINE, WHATSAPP, INSTAGRAM } from "./config.js";
 import { UNITS, RATING_FORMS, RATING_QUESTIONS, SERVICE_CATALOG } from "./data.js";
 
-const homeIcon = `<svg viewBox="0 0 24 24" width="52" height="52" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg>`;
+export const tile = (href, icon, label, cls = "", sub = "") => `<a class="tile ${cls}" href="#${href}"><span class="ic">${icon}</span><span>${esc(label)}${sub ? `<br><span class="sub">${esc(sub)}</span>` : ""}</span></a>`;
+export const emergencyCard = () => `
+    <div class="emg">
+      <div class="t">${esc(t("emergency"))} · EMERGENCY</div>
+      <div class="sub">${esc(t("maintenance_section"))} · ${esc(t("hotline_title"))}</div>
+      <div class="num">${HOTLINE}</div>
+      <div class="acts">
+        <a class="btn call" href="tel:${HOTLINE}">${I.phone} ${esc(t("call"))}</a>
+        <a class="btn wa" href="https://wa.me/${WHATSAPP}" target="_blank" rel="noopener">${I.whatsapp} WhatsApp</a>
+      </div>
+    </div>`;
+
 
 // ---- language ----
 route("/lang", () => {
   hideTop();
   view().innerHTML = `
     <div class="splash">
-      <div class="logo">${homeIcon}</div>
-      <p class="uni">جامعة الكويت<br><span class="muted">الأمانة العامة</span></p>
+      <div class="shield"><img src="icons/ku-shield.png" alt="Kuwait University"></div>
+      <p class="uni">جامعة الكويت · Kuwait University</p>
       <p class="dept">إدارة الإنشاءات والصيانة</p>
-      <p class="en">Kuwait University · General Secretary Office<br>Department of Construction &amp; Maintenance</p>
-      <p style="margin-top:18px"><b>مرحبا بك · Welcome</b><br><span class="muted">اختر اللغة · Choose language</span></p>
+      <p class="en">Department of Construction &amp; Maintenance</p>
+      <p style="margin-top:22px;opacity:.9"><b>مرحبا بك · Welcome</b><br><span style="opacity:.8;font-size:13px">اختر اللغة · Choose language</span></p>
       <div class="lang-row">
-        <button class="pill sky fill" data-lang="en">English</button>
-        <button class="pill fill" data-lang="ar">العربية</button>
+        <button class="btn sky" data-lang="en">English</button>
+        <button class="btn" data-lang="ar">العربية</button>
       </div>
     </div>`;
   view().querySelectorAll("[data-lang]").forEach(b => b.onclick = () => { setLang(b.dataset.lang); go("/"); });
@@ -35,41 +47,31 @@ route("/", () => {
     const map = { dashboard: "/dashboard", emergency: "/emergency", inbox: "/inbox", complaints: "/feedback/complaint", requests: "/feedback/request", suggestions: "/feedback/suggestion" };
     if (map[fav]) return go(map[fav]);
   }
-  setTop(t("app_name"), { home: false, settings: !!state.profile });
+  setTop("", { hero: brandHero(`<div class="date" style="justify-content:center;margin-top:8px">${esc(todayLabel())}</div>`), back: false });
   view().innerHTML = `
-    <div class="grid2">
-      <a class="pill sky" href="#/about">${esc(t("about"))}</a>
-      <a class="pill sky" href="#/vision">${esc(t("vision"))}</a>
-      <a class="pill sky" href="#/mission">${esc(t("mission"))}</a>
-      <a class="pill sky" href="#/goals">${esc(t("goals"))}</a>
-      <a class="pill sky" href="#/structure">${esc(t("structure"))}</a>
-      <a class="pill sky" href="#/contact">${esc(t("contact"))}</a>
+    <h2 class="section">${esc(t("services_pick"))}</h2>
+    <div class="tiles">
+      ${tile("/employee", I.badge, t("cat_employee"), "sun")}
+      ${tile("/cat/user", I.user, t("cat_user"))}
+      ${tile("/cat/staff", I.building, t("cat_staff"), "navy")}
+      ${tile("/cat/company", I.briefcase, t("cat_company"), "green")}
     </div>
 
-    <h2 class="section center">${esc(t("rate_dept"))}</h2>
-    <div class="grid3">
-      <a class="pill sun sm" href="#/rate">${esc(t("rating_forms"))}</a>
-      <a class="pill sun sm" href="#/suggest">${esc(t("suggest"))}</a>
-      <a class="pill sun sm" href="#/complain">${esc(t("complain"))}</a>
+    <h2 class="section">${esc(t("rate_dept"))}</h2>
+    <div class="tiles cols3">
+      ${tile("/rate", I.star, t("rating_forms"), "sun")}
+      ${tile("/suggest", I.bulb, t("suggest"))}
+      ${tile("/complain", I.alert, t("complain"), "red")}
     </div>
 
-    <h2 class="section center">${esc(t("services_pick"))}</h2>
-    <div class="stack">
-      <a class="pill sun" href="#/employee">${esc(t("cat_employee"))}</a>
-      <a class="pill" href="#/cat/user">${esc(t("cat_user"))}</a>
-      <a class="pill" href="#/cat/staff">${esc(t("cat_staff"))}</a>
-      <a class="pill sky" href="#/cat/company">${esc(t("cat_company"))}</a>
+    <h2 class="section">${esc(t("about_dept"))}</h2>
+    <div class="rows">
+      ${[["/about", I.info, t("about")], ["/vision", I.eye, t("vision")], ["/mission", I.flag, t("mission")], ["/goals", I.target, t("goals")], ["/structure", I.tree, t("structure")], ["/contact", I.phone, t("contact")]]
+        .map(([h, i, l]) => `<a class="row-item" href="#${h}"><span class="ic">${i}</span><span class="grow">${esc(l)}</span><span class="chev">${I.chevron}</span></a>`).join("")}
     </div>
 
-    <div class="hotline">
-      <div>${esc(t("hotline_title"))}</div>
-      <div class="num">${HOTLINE}</div>
-    </div>
-    <div class="hotline-actions">
-      <a class="pill wa" href="https://wa.me/${WHATSAPP}" target="_blank" rel="noopener">WhatsApp · ${esc(t("send"))}</a>
-      <a class="pill call" href="tel:${HOTLINE}">☎ ${esc(t("call"))}</a>
-    </div>
-    <p class="bottom-note">KU-CMD · <a href="#/lang">${getLang() === "ar" ? "English" : "العربية"}</a></p>`;
+    ${emergencyCard()}
+    <p class="bottom-note">KU-CMD · ${esc(t("university"))}</p>`;
 });
 
 // ---- about pages ----
@@ -89,13 +91,16 @@ route("/structure", () => {
 route("/contact", () => {
   const line = (k, n) => `<div class="contact-line"><span>${esc(t(k))}</span><a href="tel:${n}">${n}</a></div>`;
   simplePage(t("contact"), `
+    <div class="rows">
     ${line("contact_sec_manager", "24984459")}
     ${line("contact_sec_contracts", "24984598")}
     ${line("contact_sec_design", "24984598")}
     ${line("contact_sec_maint", "24984446")}
-    <div class="contact-line"><span>${esc(t("hotline_title"))}</span><a href="tel:${HOTLINE}">${HOTLINE}</a></div>
-    <h2 class="section center">${esc(t("social"))}</h2>
-    <p class="center"><a class="pill sky" href="https://instagram.com/${INSTAGRAM}" target="_blank" rel="noopener">Instagram · ${INSTAGRAM}</a></p>`)();
+    <div class="contact-line"><span>${esc(t("security_dept"))}</span><a href="tel:24983333">24983333</a></div>
+    </div>
+    ${emergencyCard()}
+    <h2 class="section">${esc(t("social"))}</h2>
+    <a class="btn sky" href="https://instagram.com/${INSTAGRAM}" target="_blank" rel="noopener">Instagram · ${INSTAGRAM}</a>`)();
 });
 
 // ---- feedback forms (rating / suggestion / complaint) ----
@@ -117,7 +122,7 @@ async function submitFeedback(form, kind, extra = {}, files = []) {
     await fb.addDoc(fb.collection(db, "feedback"), {
       kind, ...data, ...extra, attachments, status: "new", byUid: uid(), lang: getLang(), createdAt: fb.serverTimestamp()
     });
-    view().innerHTML = `<div class="result"><div class="mark ok">✓</div><h2>${esc(t("sent_ok"))}</h2><p class="muted">${esc(t("thanks_feedback"))}</p><a class="pill fill" href="#/">${esc(t("close"))}</a></div>`;
+    view().innerHTML = `<div class="result"><div class="mark ok">✓</div><h2>${esc(t("sent_ok"))}</h2><p class="muted">${esc(t("thanks_feedback"))}</p><div class="stack"><a class="btn" href="#/">${esc(t("close"))}</a></div></div>`;
     return true;
   } catch (e) { toast(firebaseError(e), true); return false; }
   finally { busy(false); }
@@ -131,7 +136,7 @@ function textForm(kind, titleKey, placeholderKey, extra = {}) {
       <div class="field"><label>${esc(t(placeholderKey))}</label><textarea name="text" required></textarea></div>
       ${contactFields()}
       ${att.html}
-      <button class="pill fill" type="submit">${esc(t("send"))}</button>
+      <button class="btn" type="submit">${esc(t("send"))}</button>
     </form>`;
   att.bind(view());
   $("#f").onsubmit = (e) => { e.preventDefault(); submitFeedback(e.target, kind, extra, att.files); };
@@ -141,7 +146,7 @@ route("/complain", () => textForm("complain", "complain", "write_complaint"));
 route("/rate", () => {
   setTop(t("app_name"));
   view().innerHTML = `<h1 class="page-title">${esc(t("rating_forms"))}</h1><p class="center muted">${esc(t("satisfaction_survey"))}</p>
-    <div class="stack">${Object.entries(RATING_FORMS).map(([k, v]) => `<a class="pill" href="#/rate/${k}">${esc(L(v))}</a>`).join("")}</div>`;
+    <div class="tiles">${Object.entries(RATING_FORMS).map(([k, v], i) => tile("/rate/" + k, [I.wrench, I.wave, I.hardhat][i], L(v), ["sky", "green", "sun"][i])).join("")}</div>`;
 });
 route("/rate/:form", ({ form }) => {
   setTop(t("app_name"));
@@ -154,7 +159,7 @@ route("/rate/:form", ({ form }) => {
       ${RATING_QUESTIONS.map(q => `<div class="rate-q"><p>${esc(L(q))}</p><div class="stars" data-q="${q.id}">${[1, 2, 3, 4, 5].map(n => `<button type="button" data-n="${n}">★</button>`).join("")}</div></div>`).join("")}
       <div class="field"><label>${esc(t("comments"))}</label><textarea name="text"></textarea></div>
       ${contactFields()}
-      <button class="pill fill" type="submit">${esc(t("send"))}</button>
+      <button class="btn" type="submit">${esc(t("send"))}</button>
     </form>`;
   view().querySelectorAll(".stars").forEach(s => s.querySelectorAll("button").forEach(b => b.onclick = () => {
     scores[s.dataset.q] = +b.dataset.n;
@@ -172,19 +177,21 @@ route("/cat/:cat", ({ cat }) => {
   setTop(t("app_name"));
   const title = { user: t("cat_user"), staff: t("cat_staff"), company: t("cat_company") }[cat] || t("cat_user");
   view().innerHTML = `
+    <div class="seg">${[["user", t("cat_user")], ["staff", t("cat_staff")], ["company", t("cat_company")]].map(([k, l]) => `<button class="${k === cat ? "on" : ""}" data-c="${k}">${esc(l)}</button>`).join("")}</div>
     <h1 class="page-title">${esc(title)}</h1>
-    <p class="center muted">${esc(t("user_home_hint"))}</p>
-    <div class="stack">
-      <a class="pill" href="#/services/${cat}">${esc(t("dept_services"))}</a>
-      <a class="pill" href="#/faq">${esc(t("faq"))}</a>
-      <a class="pill" href="#/inquiry/${cat}">${esc(t("submit_inquiry"))}</a>
-      <a class="pill" href="#/contact">${esc(t("contact"))}</a>
-      ${cat === "user" ? `<a class="pill" href="#/complain">${esc(t("complain"))}</a><a class="pill" href="#/suggest">${esc(t("suggest"))}</a>` : ""}
-      ${cat === "company" ? `<a class="pill sky" href="#/contracts">${esc(t("contracts"))}</a>` : ""}
-    </div>`;
+    <div class="tiles">
+      ${tile("/services/" + cat, I.wrench, t("dept_services"), "sky")}
+      ${tile("/inquiry/" + cat, I.mail, t("submit_inquiry"), "navy")}
+      ${tile("/faq", I.question, t("faq"))}
+      ${tile("/contact", I.phone, t("contact"), "green")}
+      ${cat === "user" ? tile("/complain", I.alert, t("complain"), "red") + tile("/suggest", I.bulb, t("suggest"), "sun") : ""}
+      ${cat === "company" ? tile("/contracts", I.file, t("contracts"), "sun") : ""}
+    </div>
+    ${emergencyCard()}`;
+  view().querySelectorAll("[data-c]").forEach(b => b.onclick = () => go("/cat/" + b.dataset.c));
 });
 route("/faq", () => simplePage(t("faq"), `<p class="lead" style="white-space:pre-wrap">${esc(t("faq_body"))}</p>`)());
-route("/contracts", () => simplePage(t("contracts"), `<p class="lead">${esc(t("contracts_body"))}</p><a class="pill fill" href="#/inquiry/company">${esc(t("submit_inquiry"))}</a>`)());
+route("/contracts", () => simplePage(t("contracts"), `<p class="lead">${esc(t("contracts_body"))}</p><a class="btn" style="margin-top:12px" href="#/inquiry/company">${esc(t("submit_inquiry"))}</a>`)());
 route("/inquiry/:cat", ({ cat }) => {
   setTop(t("app_name"));
   const att = attachmentPicker();
@@ -196,7 +203,7 @@ route("/inquiry/:cat", ({ cat }) => {
       <div class="field"><label>${esc(t("details"))}</label><textarea name="text" required></textarea></div>
       ${contactFields(cat === "company" ? `<div class="field"><label>${esc(t("org_name"))}</label><input name="org" required></div>` : "")}
       ${att.html}
-      <button class="pill fill" type="submit">${esc(t("send"))}</button>
+      <button class="btn" type="submit">${esc(t("send"))}</button>
     </form>`;
   att.bind(view());
   $("#f").onsubmit = (e) => { e.preventDefault(); submitFeedback(e.target, "inquiry", { category: cat }, att.files); };
@@ -214,7 +221,7 @@ route("/services/:cat", ({ cat }) => {
       <div class="field"><label>${esc(t("details"))}</label><textarea name="text"></textarea></div>
       ${contactFields(cat === "company" ? `<div class="field"><label>${esc(t("org_name"))}</label><input name="org" required></div>` : "")}
       ${att.html}
-      <button class="pill fill" type="submit">${esc(t("request_service"))}</button>
+      <button class="btn" type="submit">${esc(t("request_service"))}</button>
     </form>`;
   att.bind(view());
   const unitSel = $("#unit"), svcSel = $("#service");

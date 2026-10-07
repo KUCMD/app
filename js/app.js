@@ -1,5 +1,7 @@
 // Entry point: wires auth + settings listeners, top bar, and the router.
-import { auth, db, fb, state, render, go, $, view, esc } from "./core.js";
+import { auth, db, fb, state, render, go, $, openDrawer, closeDrawer, setJobLabel } from "./core.js";
+import { I } from "./icons.js";
+import { job } from "./data.js";
 import { getLang, setLang, t } from "./i18n.js";
 import "./public.js";
 import "./employee.js";
@@ -7,8 +9,12 @@ import "./employee.js";
 if (getLang()) setLang(getLang());
 
 // top bar buttons
-$("#btn-home").onclick = () => go("/");
-$("#btn-settings").onclick = () => go("/settings");
+$("#btn-menu").innerHTML = I.menu;
+$("#btn-back").innerHTML = I.back;
+$("#btn-menu").onclick = openDrawer;
+$("#btn-back").onclick = () => { if (history.length > 1) history.back(); else go("/"); };
+$("#drawer-backdrop").onclick = closeDrawer;
+setJobLabel((id) => job(id) || { ar: "", en: "" });
 
 // live app settings (active flag, delegates)
 fb.onSnapshot(fb.doc(db, "settings", "app"), (snap) => {
