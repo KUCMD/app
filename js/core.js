@@ -71,7 +71,7 @@ export function todayLabel() {
 }
 export function brandHero(sub = "") {
   return `<div class="brand"><div class="shield"><img src="icons/ku-shield.png" alt="Kuwait University"></div>
-    <p class="uni">${esc(t("university"))} · ${esc(t("gso"))}</p><p class="dept">${esc(t("app_name"))}</p>${sub}
+    <p class="uni">${esc(t("university"))}</p><p class="dept">${esc(t("app_name"))}</p>${sub}
     <div class="sun-bar"></div></div>`;
 }
 
